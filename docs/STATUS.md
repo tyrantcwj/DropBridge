@@ -6,7 +6,7 @@
 
 ## 1. 一句话
 
-DropBridge 是 Windows 上的 AirDrop 接收端，交付形态是一个文件夹加一个托盘程序。iPhone 用系统自带的隔空投送，通过专用的 RTL8821CU USB 网卡把文件传到电脑上。**iPhone → Windows 已在真机上稳定达到约 1.1 MB/s**（29,456,959 B 视频 26.84 s / 26.89 s，Q46 / Q54），最好成绩 1121 KB/s。还没解决的有两件事：传完一次以后有时发现不了设备，以及多台手机同时在线时降速。Windows → iPhone 发送已确认无法实现，本项目只做接收。
+DropBridge 是 Windows 上的 AirDrop 接收端，交付形态是一个文件夹加一个托盘程序。iPhone 用系统自带的隔空投送，通过专用的 RTL8821CU USB 网卡把文件传到电脑上。**iPhone → Windows 已在真机上稳定达到约 1.1 MB/s**（29,456,959 B 视频 26.84 s / 26.89 s，Q46 / Q54），最好成绩 1121 KB/s。还没解决的有两件事：传完一次以后有时发现不了设备，以及多台手机同时在线时降速。本项目的发行版只做接收，Windows → iPhone 原型尚未验收。
 
 每项结论的验证层级不同，下表分开列出，彼此不能替代：
 
@@ -108,7 +108,7 @@ DropBridge\                唯一形态：一个文件夹，外加同样内容�
 ## 7. 未解决
 
 1. **Q51 发现丢失和多机降速**：一次传输成功后，手机再发起的 TCP/TLS 连接会反复失败，重启链路能恢复；两台手机同时在线时降到 0.08–0.12 MB/s，慢传窗口里 CRC 错误占约 67–70%。根因尚未查清。
-2. **Q48 Windows → iPhone 发送：已确认无法实现，终止**（用户 2026-11-04 确认）。发现、出站 TCP 和 TLS 握手都已走通，但 iPhone 用 TLS alert 拒绝了本项目的自签证书。
+2. **Q48 Windows → iPhone 发送：待真机复测。** 已验证发现和出站 TCP；TLS 在旧测试中收到证书类告警。上游另有成功记录，详见 [发送诊断](SEND_PATH.md)。
 3. **Q68–Q70 待验证**：全部只有源码。需要在 Windows 上运行 `Build-Supervisor.ps1 -Test`、`Build-Sfx.ps1`，用 MSVC 编译 netd/radio/bridge、MinGW 编译 awdld，跑 `ctest -R netd_`；在 `D:\`、含空格的路径、含空格的设备名下各收一次文件；托盘内多次「重置链路」确认 radio 能重新起来；启动中途退出确认没有残留进程；无蓝牙机器上看 beacon 的退避与 10 分钟重试；真机发现与传输确认管道桥的重叠 I/O 没有回退。完整清单见 [WORK_QUEUE.md](WORK_QUEUE.md) 的 Q68、Q69、Q70 各行。
    Q70 记下的遗留：停止信号在 `InitWrite` 期间到达仍会等到 15 秒后强杀；radio accept 失败路径仍可能 detach；每次启动用唯一停止事件名没有实现；`tools/Run-AwdlAdmin.ps1` 因不再拷贝 Wintun 而必然失败，不属于当前链路，是否删除待定。
 4. **Q43**：receiver 解析 `/Discover` 的分块格式过严，已有 WARNING 但还没修。

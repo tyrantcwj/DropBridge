@@ -1,6 +1,10 @@
-# PC → iPhone 发送（已终止：确认无法实现）
+# PC → iPhone 发送诊断
 
-> **2026-11-04 结论**：用户确认 Windows → iPhone 发送无法实现，Q48 终止，DropBridge 只做接收。下文是排查过程的记录，保留备查。
+**2026-11-13 复核：DropBridge 发送仍未跑通，可以继续做兼容性实验。** 旧测试已通过 BLE 唤醒、mDNS SRV 发现和出站 TCP，在 TLS 阶段收到证书类告警。旧工具把多种告警都归为 `Unwilling`，所以没有证据确认具体原因。下文 §1–§7 保留旧实验的时间线，以 §7 的结果为准。
+
+[winawdl 的实测报告](https://github.com/raph559/winawdl/blob/0db7031589dc2bca03c0893db341176376962047/README.md#where-it-stands) 记录了 Windows → iPhone 的成功发送（RTL8852CE，单台 iPhone）。本地核对：该版本的 `airdrop/sender.py` 和 `airdrop/identity.py` 与本项目锁定的 `2196fb48` 字节相同；其 `/Discover` 用空 plist，自签 TLS 身份，不附带 Apple 签发的联系人记录。[PulseIt](https://github.com/gsl0001/windows-airdrop#what-works--and-what-still-needs-testing) 也报告早期版本送达过，但用另一款 USB 网卡。这些是上游报告，不能代替本项目的真机验收。
+
+优先在同一台 iPhone、同一 iOS 版本、同一「所有人（10 分钟）」窗口，使用两个隔离的 `--keys` 目录做对照：DropBridge 新生成的身份与上游原版 `identity.py` 生成的身份。两条路径都自签，但 DropBridge 的 cryptography 路径显式加入了 `BasicConstraints CA:TRUE`；这是可比较的变量，不是已证实的根因。[Apple 也说明了 iOS 26.2 起的 AirDrop 码流程](https://support.apple.com/119857)；如果手机显示该流程，记录现象，本项目尚未验证这条路径。
 
 2026-10-30。目标：电脑主动把文件发给 iPhone。iPhone 侧设为「所有人」。
 本文记录**已经打通的层**、**当前卡点**和下一步，避免下一步人重走一遍。
@@ -45,7 +49,7 @@ tools\airdrop_send.py  ──(127.0.0.1:8772, "CONNECT <ipv6> <port>\n")──�
   TLS 端到端。头不会发给对端。
 - `tools/airdrop_send.py`：
   - 发现：`mdns.Instances` 通过 netd 的 mDNS 代理（15353）发 PTR/PTR+SRV 查询；
-  - 直连：`--address <ipv6>` 跳过发现，直接对 8771 发 `/Ask`（用于已经知道地址时）；
+  - 直连：`--address <ipv6> --port <srv端口>` 跳过发现，用手机自己的 SRV 端口；
   - 连接：`ProxyConnection` 替换上游 `sender.Connection` 的 Windows 4 元组连接。
 - 离线回归：`python tools/test_netd_tcp.py <netd> --case outbound` 验证 CONNECT 解析
   与 lwIP 发出 SYN（不做假 TCP 服务端，数据面要靠真机）。
@@ -68,7 +72,7 @@ tools\airdrop_send.py  ──(127.0.0.1:8772, "CONNECT <ipv6> <port>\n")──�
 1. **面板关闭**、手机解锁亮屏、AirDrop「所有人」，电脑侧跑 60 s 浏览，
    看能否收到 `_airdrop._tcp` 的 **answer**（含 SRV 端口）。
    - 收到 → 用 `tools\airdrop_send.py --address <addr>`（端口来自 SRV）走 `/Ask`，
-     看手机是否弹窗；弹窗即成功，再谈产品化。
+     看手机是否弹窗；弹窗只是通过 Ask；接受后还要验证文件落地。
    - 仍收不到 → 说明 iPhone 在「仅所有人」时也不主动公告，必须有蓝牙 beacon
      （上游 `sender.py` 的 Beacon，需要 MI_00 蓝牙恢复）或由手机先发起一次。
 2. 若手机弹窗但 TLS 被拒（日志 `CERTIFICATE`/`UNKNOWN_CA`），则是证书策略问题：
@@ -111,17 +115,20 @@ MI_00（Realtek 蓝牙）在“重启”之后仍是 `CM_PROB_FAILED_ADD`——�
 实际没有发生（系统 uptime 显示 11 h 36 min）；`pnputil /restart-device` 也无效。
 这不影响 beacon（走 Intel 蓝牙）。
 
-## 8. 复现命令
+## 8. 复测命令
+
+先按 README 准备上游模块。退出已运行的托盘，使用已解压且驱动已绑定的 DropBridge 包；以下启动会使用网卡和蓝牙，需先取得本机使用授权。手机保持解锁，开启「所有人（10 分钟）」。
 
 ```powershell
-# 带发送能力的测试包（只换 netd，334 文件集合不变）
-powershell -File tools\Build-Supervisor.ps1 -Test
-# 起链路（--allow-send 让 netd 额外监听 8772）
-& '.\build\supervisor\Release\AirBridge32.exe' --root '.\build\diagnostics\send\test-package' `
-    --data (Resolve-Path '.\dist\data') --allow-send --smoke 1800
+# 先启动接收端（例如修复版 ZIP 解压到 D:\DropBridge），在另一终端继续
+& 'D:\DropBridge\DropBridge.exe' --allow-send
 
-# 发现 + 发送（手机在可发现状态时）
-python tools\airdrop_send.py --search 20 packaging\README.txt
-# 已知地址时直连（端口先按 8771 试）
-python tools\airdrop_send.py --address FE80::xxxx --search 1 packaging\README.txt
+# 只查看手机公告的地址和端口，不做 TLS 请求
+python tools\airdrop_send.py --list --search 15
+# 代入上一步的实际 IPv6 和端口，只测试 /Discover，不请求接收或发送文件
+python tools\airdrop_send.py --probe --address <IPv6> --port <SRV端口> --keys 'D:\DropBridge\data\keys'
+# 只有 /Discover 成功后，再试 Ask / Upload；等待 iPhone 确认并核对文件
+python tools\airdrop_send.py --address <IPv6> --port <SRV端口> --keys 'D:\DropBridge\data\keys' <测试文件>
 ```
+
+证书 A/B 时把 `--keys` 改为两个独立测试目录，分别用各自的 `identity.ensure_self_signed` 预先生成证书；探测同一个 SRV 地址和端口。退出托盘即关闭实验代理。

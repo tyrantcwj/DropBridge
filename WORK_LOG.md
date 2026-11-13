@@ -1,5 +1,11 @@
 # 工作记录 / 下一位 Agent 交接
 
+## 2026-11-13：复核 Windows → iPhone 的可行性
+
+- 上游 winawdl 在 RTL8852CE 上报告发送成功。核对其 0.4.0 参考提交与本项目锁定版，发送模块和上游自签证书生成模块一致。DropBridge 旧日志只证明当时那台手机拒绝了证书，不能确定具体 TLS 告警或 Apple 身份记录要求。
+- `airdrop_send.py --list` 现在无需文件或证书即可显示 mDNS 端点；`--probe` 仅发 `/Discover` 并保留 TLS 错误；已知地址时使用 SRV 端口，不再假定 8771。
+- Windows 本地 UDP 夹具验证 PTR/SRV/AAAA 发现；通过回环 CONNECT 及真实 TLS 服务验证 `/Discover` 成功和 `UNKNOWN_CA` 两条分支，没有发 `/Ask` 或 `/Upload`。尚无 DropBridge 真机发件成功的证据。
+
 ## 2026-11-13：修复旧发布包的 WinUSB 驱动哈希
 
 - 原项目 `v0.1.0-internal.1` ZIP 内的 INF 有 39 个 CRLF，SHA-1 为 `e54610e9d610fd17f4a94b38940bfb19e356226e`；CAT 记录的是仓库 LF 版本的 `d715e4ea3912d32b361b95624c3e9ef2396d9f9e`。把旧包 INF 转回 LF 后与仓库文件逐字节一致，旧包 CAT 和 CER 也与仓库一致。

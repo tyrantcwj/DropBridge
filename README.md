@@ -79,6 +79,12 @@ DropBridge\
 ### 常见问题
 
 <details>
+<summary><b>安装驱动提示「文件的哈希值不在指定的目录文件中」</b></summary>
+
+原项目的 `v0.1.0-internal.1` 便携 ZIP 把 `setup\driver\airbridge-winusb.inf` 保存成了 CRLF 换行，和目录签名不匹配。换用修复包，或将本仓库 `packaging\driver\airbridge-winusb.inf` 按原样复制到旧包的 `setup\driver\` 后重试。用文件复制，避免编辑器另存时再次改换行。不要关驱动签名检查。
+</details>
+
+<details>
 <summary><b>手机列表里看不到 DropBridge</b></summary>
 
 确认托盘状态为「运行中」、beacon 开着，再试「重新启动后端」。正常时 `awdld.log` 里有 `peers 1`。已知传完一次后可能连不上，重启后端可恢复（Q51）。
@@ -97,17 +103,9 @@ DropBridge\
 </details>
 
 <details>
-<summary><b>为什么不能从电脑发文件给 iPhone / Mac</b></summary>
+<summary><b>Windows 能主动投送到 iPhone 吗？</b></summary>
 
-隔空投送的发送方必须向接收方证明自己的身份，这一步 DropBridge 过不去：
-
-1. **前面都走通了。** 蓝牙 beacon 唤醒手机、发现手机、拿到地址和端口、建立 TCP 连接、发起 TLS 握手，这些都已在真机上验证。
-2. **卡在证书。** iPhone 收到 DropBridge 的证书后，直接用 TLS alert 断开连接（上游日志为 `Unwilling`）。手机的隔空投送已设为「所有人」，所以问题不只出在「仅联系人」上。
-3. **很可能绕不过去。** Apple 设备之间互传时，发送方会附带由 Apple 签发的身份记录（`SenderRecordData`），只有登录了 Apple ID 的 Apple 设备才拿得到，自签证书无法伪造。iPhone 拒绝的确切 alert 类型没有抓到，所以「缺这份记录」是推断，不是实测结论。
-
-因此发送方向已在 2026-11-04 确认无法实现并停止开发（Q48），DropBridge 只做接收。排查过程见 [docs/SEND_PATH.md](docs/SEND_PATH.md)。
-
-> 以上结论只在 iPhone 上实测过，**Mac 没有测试过**。macOS 对发送方证书的校验可能比 iOS 宽松，但本项目没有做过验证，也不提供这个功能。
+DropBridge 目前只交付接收功能。发送原型已在真机上发现过 iPhone 并建立 TCP 连接，但 TLS 报证书类告警，尚无成功送达的记录。[上游 winawdl](https://github.com/raph559/winawdl#where-it-stands) 在另一款网卡和一台 iPhone 上报告过用自签证书成功投送，所以不能由这次失败推断所有 iPhone 都必须验证 Apple 签发的发送方身份。复测方法见 [发送诊断](docs/SEND_PATH.md)。Mac 未实测。
 </details>
 
 <details>
@@ -187,7 +185,7 @@ dist\DropBridge\DropBridge.exe --check     # 应 exit 0
 | [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) | 发布前核对清单 |
 | [docs/FINAL_PLAN.md](docs/FINAL_PLAN.md) · [PLAN.md](docs/PLAN.md) · [PHASE0_AUDIT.md](docs/PHASE0_AUDIT.md) | 方案、计划与审计 |
 | [docs/LICENSE_MATRIX.md](docs/LICENSE_MATRIX.md) | 许可证核查 |
-| [docs/SEND_PATH.md](docs/SEND_PATH.md) | 发送方向排查（结论：无法实现） |
+| [docs/SEND_PATH.md](docs/SEND_PATH.md) | 实验性反向投送的诊断与复测 |
 
 ## 状态与限制
 
@@ -201,7 +199,7 @@ dist\DropBridge\DropBridge.exe --check     # 应 exit 0
 
 **未解决**
 
-- 只能接收，发送已确认无法实现（Q48）
+- 当前发行版只支持接收；发送原型尚未在 DropBridge 上验收（Q48）
 - 首次传输后发现丢失、多机降速（Q51）
 - 24 小时常驻测试未完成（Q7）
 - `/Discover` 分块解析过严（Q43）
