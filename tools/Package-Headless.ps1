@@ -32,6 +32,8 @@ foreach ($p in @($radio, $bridge, $netd, $awdld, $libusb)) { Need $p 'build the 
 Need $supervisor 'run tools\Build-Supervisor.ps1 first'
 Need $python 'prepare build\python-embed (embeddable Python + cryptography) first'
 Need (Join-Path $airdrop 'receiver.py') 'upstream/winawdl is missing'
+$driverSource = Join-Path $root 'packaging\driver'
+& (Join-Path $PSScriptRoot 'Test-DriverPackage.ps1') -DriverDirectory $driverSource
 
 $stageFull = [IO.Path]::GetFullPath($stage)
 $distFull = [IO.Path]::GetFullPath($dist).TrimEnd('\') + '\'
@@ -78,12 +80,9 @@ if (Test-Path $beacon) { Copy-Item $beacon (Join-Path $stage 'backend\beacon.ps1
 # package used by the in-app installer (DropBridge.exe --install-driver).
 robocopy (Join-Path $root 'packaging\setup') (Join-Path $stage 'setup') /E /NJH /NJS /NFL /NDL /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with $LASTEXITCODE while staging setup" }
-$driverSource = Join-Path $root 'packaging\driver'
-if (Test-Path (Join-Path $driverSource 'airbridge-winusb.cat')) {
-    New-Item -ItemType Directory -Force (Join-Path $stage 'setup\driver') | Out-Null
-    foreach ($name in 'airbridge-winusb.inf', 'airbridge-winusb.cat', 'dropbridge-driver.cer') {
-        Copy-Item (Join-Path $driverSource $name) (Join-Path $stage 'setup\driver') -Force
-    }
+New-Item -ItemType Directory -Force (Join-Path $stage 'setup\driver') | Out-Null
+foreach ($name in 'airbridge-winusb.inf', 'airbridge-winusb.cat', 'dropbridge-driver.cer') {
+    Copy-Item -LiteralPath (Join-Path $driverSource $name) -Destination (Join-Path $stage 'setup\driver') -Force
 }
 Copy-Item (Join-Path $root 'tools\Start-Chain.ps1') (Join-Path $stage 'tools') -Force
 # Q62: notification helpers, used by the tray in the single-file payload too.

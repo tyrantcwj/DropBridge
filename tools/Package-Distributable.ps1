@@ -42,6 +42,8 @@ foreach ($p in @($supervisor, $radio, $bridge, $netd, $awdld, $libusb)) {
 }
 Need $python 'prepare build\python-embed (embeddable Python + cryptography) first'
 Need (Join-Path $airdrop 'receiver.py') 'upstream/winawdl is missing'
+$driverSource = Join-Path $root 'packaging\driver'
+& (Join-Path $PSScriptRoot 'Test-DriverPackage.ps1') -DriverDirectory $driverSource
 
 # Refuse to delete anything that is not exactly the staging folder under dist.
 $stageFull = [IO.Path]::GetFullPath($stage)
@@ -127,12 +129,9 @@ if ($LASTEXITCODE -ge 8) { throw "robocopy failed with $LASTEXITCODE while stagi
 # The in-app installer (DropBridge.exe --install-driver) uses this signed package:
 # it imports dropbridge-driver.cer and points pnputil at the INF. Built by
 # tools\Build-DriverPackage.ps1; no Zadig needed when it works.
-$driverSource = Join-Path $root 'packaging\driver'
-if (Test-Path (Join-Path $driverSource 'airbridge-winusb.cat')) {
-    New-Item -ItemType Directory -Force (Join-Path $stage 'setup\driver') | Out-Null
-    Copy-Item (Join-Path $driverSource 'airbridge-winusb.inf') (Join-Path $stage 'setup\driver') -Force
-    Copy-Item (Join-Path $driverSource 'airbridge-winusb.cat') (Join-Path $stage 'setup\driver') -Force
-    Copy-Item (Join-Path $driverSource 'dropbridge-driver.cer') (Join-Path $stage 'setup\driver') -Force
+New-Item -ItemType Directory -Force (Join-Path $stage 'setup\driver') | Out-Null
+foreach ($name in 'airbridge-winusb.inf', 'airbridge-winusb.cat', 'dropbridge-driver.cer') {
+    Copy-Item -LiteralPath (Join-Path $driverSource $name) -Destination (Join-Path $stage 'setup\driver') -Force
 }
 
 $commit = (& git rev-parse --short HEAD 2>$null)

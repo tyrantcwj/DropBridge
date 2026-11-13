@@ -28,6 +28,7 @@ if (-not $SkipPayload -and -not (Test-Path $stage)) {
     if ($LASTEXITCODE -ne 0) { throw 'Package-Headless.ps1 failed' }
 }
 if (-not (Test-Path (Join-Path $stage 'Start.cmd'))) { throw "staged package missing: $stage" }
+& (Join-Path $PSScriptRoot 'Test-DriverPackage.ps1') -DriverDirectory (Join-Path $stage 'setup\driver')
 
 New-Item -ItemType Directory -Force $dist | Out-Null
 if (Test-Path $payload) { Remove-Item $payload -Force }

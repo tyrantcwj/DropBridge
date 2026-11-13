@@ -34,6 +34,7 @@ Q68、Q69、Q70 三轮修复只提交了源码，没有编译过。当前代码�
 - [ ] `dist\DropBridge\DropBridge.exe --check` 返回 0，输出里没有 `MISSING`。
 - [ ] `VERSION.txt` 里的提交号等于要发布的提交，工作区干净（没有未提交改动混进包里）。
 - [ ] 包里有 `backend\beacon.ps1`、`setup\driver\`（INF、CAT、CER 三个文件）、`setup\Bind-WinUSB.cmd`、`setup\zadig-2.9.exe`、`tools\toast.ps1`、`tools\register.ps1`。
+- [ ] 从最终 ZIP 解压后，执行 `tools\Test-DriverPackage.ps1 -DriverDirectory <解压目录>\setup\driver`。它会检查 INF 是否在签名 CAT 中、CAT 的签名与随包 CER 是否匹配，不修改证书存储或安装驱动。单文件版也对解压出的驱动目录做同样的检查。
 - [ ] `licenses\` 里有六个文件且内容各不相同：`DropBridge-LICENSE.txt`、`DropBridge-NOTICE.txt`、`WinAWDL-LICENSE.txt`、`WinAWDL-airdrop-LICENSE.txt`、`devourer-LICENSE.txt`、`OWL-COPYING.txt`（2026-11-10 修复了同名覆盖，未运行验证）。
 - [ ] 包里没有用户数据：没有 `data\`，没有开发机的密钥、日志、收到的文件。
 - [ ] 包内 `README.txt` 与要发布的行为一致（见第 6 部分）。

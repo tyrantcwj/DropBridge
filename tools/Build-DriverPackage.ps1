@@ -110,23 +110,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "signtool sign failed: $LASTEXITCODE" }
     }
 
-    # Self-check without touching any certificate store: the machine does not
-    # trust this cert yet (that is what the runtime installer adds), so validate
-    # the chain against the exported .cer explicitly.
-    Pop-Location
-    # Self-check: the machine does not trust this cert yet (the runtime
-    # installer adds it to Root + TrustedPublisher). Trust it in the *current
-    # user's* root store just for the verification, then remove it again, so the
-    # check proves the catalog and its hashes without changing the machine.
-    $trusted = Import-Certificate -FilePath $cer -CertStoreLocation Cert:\CurrentUser\Root
-    try {
-        & $signtool verify /pa /v $cat
-        $verifyExit = $LASTEXITCODE
-    } finally {
-        Remove-Item -LiteralPath ('Cert:\CurrentUser\Root\' + $trusted.Thumbprint) -Force -ErrorAction SilentlyContinue
-    }
-    if ($verifyExit -ne 0) { throw "signtool verify failed: $verifyExit" }
-    Push-Location $driverDir
+    & (Join-Path $PSScriptRoot 'Test-DriverPackage.ps1') -DriverDirectory $driverDir
 } finally {
     Pop-Location
 }
